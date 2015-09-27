@@ -39,23 +39,37 @@ import (
 	"os"
 )
 
-type InitProtocol struct {
+type InitMessage struct {
 	Version		int	`json:"version"`
-	Stop_signal	int	`json:"stop_signal"`
-	Cont_signal	int	`json:"cont_signal"`
-	Click_events	bool	`json:"click_events"`
+}
+
+type OutputMessage struct {
+	Name		string	`json:"name"`
+	Instance	string	`json:"instance"`
+	Message		string	`json:"full_text"`
+	Urgent		bool	`json:"urgent"`
+	Color		string	`json:"color"`
+	Align		string	`json:"align"`
+	shortMessage	string
+	useShort	bool
 }
 
 func init_protocol() {
-	p := InitProtocol{
+	p := InitMessage{
 		Version: 1,
-		Cont_signal: 19,
-		Stop_signal: 17,
-		Click_events: false,
 	}
 
 	b, _ := json.Marshal(p)
 
 	os.Stdout.Write(b)
 	fmt.Println()
+}
+
+func (message *OutputMessage) MarshalOutputMessage() ([]byte, error) {
+	var m map[string]interface{}
+	m = make(map[string]interface{})
+
+	m["name"] = message.Name;
+
+	return json.Marshal(m)
 }

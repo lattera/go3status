@@ -33,6 +33,17 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+)
+
 func main() {
 	init_protocol();
+
+	m := OutputMessage{Name: "ExampleMessage"}
+	b, _ := m.MarshalOutputMessage()
+
+	os.Stdout.Write(b)
+	fmt.Println()
 }
