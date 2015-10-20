@@ -34,62 +34,67 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
+	"bytes"
+	"io"
+	"os/exec"
+	"strings"
 )
 
-type InitMessage struct {
-	Version		int	`json:"version"`
+type Job struct {
+	Name		 string
+	Instance	 string
+	Commands	[]*exec.Cmd
 }
 
-type OutputMessage struct {
-	Name		string	`json:"name"`
-	Instance	string	`json:"instance"`
-	Message		string	`json:"full_text"`
-	Urgent		bool	`json:"urgent"`
-	Color		string	`json:"color"`
-	Align		string	`json:"align"`
-	ShortMessage	string
-}
+func (job *Job) Run() *OutputMessage {
+	var out bytes.Buffer
+	var r []*io.PipeReader
+	var w []*io.PipeWriter
+	nCommands := len(job.Commands)
 
-func init_protocol() {
-	p := InitMessage{
-		Version: 1,
+	/* This shouldn't happen. But if it does, be graceful about it. */
+	if nCommands == 0 {
+		msg := &OutputMessage{Name: job.Name, Instance: job.Instance}
+		return msg
 	}
 
-	b, _ := json.Marshal(p)
-
-	os.Stdout.Write(b)
-	fmt.Println()
-}
-
-func (message *OutputMessage) MarshalOutputMessage() ([]byte, error) {
-	var m map[string]interface{}
-	m = make(map[string]interface{})
-
-	m["name"] = message.Name;
-	m["full_text"] = message.Message;
-
-	if len(message.ShortMessage) > 0 {
-		m["short_message"] = message.ShortMessage;
+	/* If we're only running a single command, then no need for chaining */
+	if nCommands == 1 {
+		out, _ := job.Commands[0].CombinedOutput()
+		msg := &OutputMessage{Name: job.Name, Instance: job.Instance}
+		msg.Message = string(out)
+		return msg
 	}
 
-	if len(message.Instance) > 0 {
-		m["instance"] = message.Instance;
+	/*
+	 * Chain the commands together, waiting for each one to finish.
+	 *
+	 * TODO: Play nice. Introduce a timeout.
+	 */
+
+	r = make([]*io.PipeReader, nCommands)
+	w = make([]*io.PipeWriter, nCommands)
+
+	for i := 0; i < nCommands; i++ {
+		if i < nCommands-1 {
+			r[i], w[i] = io.Pipe()
+			job.Commands[i].Stdout = w[i]
+			job.Commands[i+1].Stdin = r[i]
+		} else {
+			job.Commands[i].Stdout = &out
+		}
 	}
 
-	if message.Urgent {
-		m["urgent"] = true;
+	for i := 0; i < nCommands; i++ {
+		job.Commands[i].Start()
 	}
 
-	if len(message.Color) > 0 {
-		m["color"] = message.Color;
+	for i := 0; i < nCommands-1; i++ {
+		job.Commands[i].Wait()
+		w[i].Close()
 	}
 
-	if len(message.Align) > 0 {
-		m["align"] = message.Align;
-	}
+	job.Commands[nCommands-1].Wait()
 
-	return json.Marshal(m)
+	return &OutputMessage{Name: job.Name, Instance: job.Instance, Message: strings.TrimSpace(out.String())}
 }

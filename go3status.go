@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014,2015 Shawn Webb <lattera@gmail.com>
+ * Copyright (c) 2015 Shawn Webb <lattera@gmail.com>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,22 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 func main() {
 	init_protocol();
 
-	m := OutputMessage{Name: "ExampleMessage"}
+	cmd := exec.Command("/bin/ls")
+	job := Job{Name: "ls"}
+
+	job.Commands = make([]*exec.Cmd, 2)
+	job.Commands[0] = cmd
+
+	cmd = exec.Command("head", "-n", "1")
+	job.Commands[1] = cmd
+
+	m := job.Run()
 	b, _ := m.MarshalOutputMessage()
 
 	os.Stdout.Write(b)
