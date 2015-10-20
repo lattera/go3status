@@ -1,0 +1,17 @@
+{
+	"sleep": 5,
+	"jobs": [
+		{
+			"name": "Time",
+			"commands": [
+				"date '+%T'"
+			]
+		},
+		{
+			"name": "Date",
+			"commands": [
+				"date '+%A, %d %b %Y'"
+			]
+		}
+	]
+}

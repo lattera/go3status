@@ -60,7 +60,11 @@ func (job *Job) Run() *OutputMessage {
 
 	/* If we're only running a single command, then no need for chaining */
 	if nCommands == 1 {
-		out, _ := job.Commands[0].CombinedOutput()
+		out, err := job.Commands[0].CombinedOutput()
+		if err != nil {
+			return &OutputMessage{Name: job.Name, Instance: job.Instance}
+		}
+
 		msg := &OutputMessage{Name: job.Name, Instance: job.Instance}
 		msg.Message = string(out)
 		return msg

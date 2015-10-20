@@ -34,44 +34,54 @@
 package main
 
 import (
-	//"encoding/json"
-	"fmt"
-	"os"
-//	"os/exec"
+	"encoding/json"
+	"io/ioutil"
+	"os/exec"
 )
 
-func main() {
-	init_protocol();
+type ConfigurationJob struct {
+	Name		string		`json:"name"`
+	Instance	string		`json:"instance"`
+	Color		string		`json:"color"`
+	Align		string		`json:"align"`
+	Urgent		bool		`json:"urgent"`
+	Commands	[]string	`json:"commands"`
+}
 
-	/*
-	cmd := exec.Command("/bin/sh", "-c", "/bin/ls")
-	job := Job{Name: "ls"}
+type Configuration struct {
+	Sleep	int			`json:"sleep"`
+	Jobs	[]*ConfigurationJob	`json:"jobs"`
+}
 
-	job.Commands = make([]*exec.Cmd, 2)
-	job.Commands[0] = cmd
+func ReadConfiguration(path string) (*Configuration, error) {
+	config := Configuration{Sleep: 5}
 
-	cmd = exec.Command("/bin/sh", "-c", "head -n 1")
-	job.Commands[1] = cmd
-
-	m := job.Run()
-	b, _ := m.MarshalOutputMessage()
-
-	os.Stdout.Write(b)
-	fmt.Println()
-	*/
-
-	c, err := ReadConfiguration("config.json.example")
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	jobs, _ := c.TransformConfiguration()
+	json.Unmarshal(data, &config)
 
-	for _,job := range jobs {
-		m := job.Run()
-		str, _ := m.MarshalOutputMessage()
+	return &config, nil
+}
 
-		fmt.Printf("%v\n", string(str))
+func (config *Configuration) TransformConfiguration() ([]*Job, error) {
+	jobs := make([]*Job, len(config.Jobs))
+
+	for i := 0; i < len(config.Jobs); i++ {
+		var tj *ConfigurationJob
+		tj = config.Jobs[i]
+		job := &Job{Name: tj.Name, Instance: tj.Instance}
+		job.Commands = make([]*exec.Cmd, len(tj.Commands))
+		for j := 0; j < len(tj.Commands); j++ {
+			cmd := exec.Command("/bin/sh", "-c", tj.Commands[j])
+
+			job.Commands[j] = cmd
+		}
+
+		jobs[i] = job
 	}
+
+	return jobs, nil
 }
